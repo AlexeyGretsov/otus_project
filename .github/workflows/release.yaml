@@ -1,0 +1,56 @@
+name: 'OTUS Final Project'
+
+on:
+  push:
+    branches: [ main ]
+
+env:
+  # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
+  BUILD_TYPE: Debug
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+
+    - name: Install tools
+      run: sudo apt-get update && sudo apt-get install -y clang-format clang-tidy libgtest-dev
+
+    - name: Coding Style checks
+      run: ${{github.workspace}}/format.sh check
+
+#    - name: Run static analysis
+#      run: ${{github.workspace}}/static-analysis.sh -p ${{github.workspace}}/build
+
+    - name: Configure CMake
+      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DPATCH_VERSION=${{ github.run_number }}
+    
+    - run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
+
+    - run: ctest --test-dir ${{github.workspace}}/build
+    - run: cpack --config ${{github.workspace}}/build/CPackConfig.cmake
+
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.run_number }}
+        release_name: Release ${{ github.run_number }}
+        draft: false
+        prerelease: false
+    - name: Upload Release Asset
+      id: upload-release-asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./otus_final_project-0.1.${{ github.run_number }}-Linux.deb
+        asset_name: otus_final_project-0.1.${{ github.run_number }}-Linux.deb
+        asset_content_type: application/vnd.debian.binary-package
