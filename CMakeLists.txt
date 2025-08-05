@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.28)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE INTERNAL "") 
 
-project(otus_project)
+project(otus_final_project)
 
 enable_testing()
 find_package(GTest REQUIRED)
