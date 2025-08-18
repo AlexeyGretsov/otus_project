@@ -23,6 +23,9 @@ jobs:
     - name: Install PG libs
       run: sudo apt-get install -y libpq-dev libpq5
 
+    - name: Install boost asio
+      run: sudo apt-get install -y libasio-dev
+
     - name: Coding Style checks
       run: ${{github.workspace}}/format.sh check
 
