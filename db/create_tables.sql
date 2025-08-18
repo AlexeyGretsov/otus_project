@@ -1,0 +1,7 @@
+DROP TABLE IF EXISTS users;
+CREATE TABLE IF NOT EXISTS users
+(
+	users_id SERIAL PRIMARY KEY,
+	id UUID,
+	name TEXT NOT NULL
+);
