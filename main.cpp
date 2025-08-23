@@ -2,11 +2,11 @@
 #include <memory>
 #include <regex>
 
+#include <boost/algorithm/string/replace.hpp>
 #include <boost/asio.hpp>
+#include <boost/uuid/random_generator.hpp>
 #include <boost/uuid/uuid.hpp>
 #include <boost/uuid/uuid_io.hpp>
-#include <boost/uuid/random_generator.hpp>
-#include <boost/algorithm/string/replace.hpp>
 
 #include "db/pg_db_connection.h"
 
@@ -22,20 +22,17 @@ int main(int argc, char *argv[]) {
   std::string dbPass = "postgres";
 
   std::shared_ptr<Db::IDbConnection> dbConn(new Db::PgDbConnection());
-  if (not dbConn->connect(dbHost, dbPort, dbName, dbUser, dbPass))
-  {
+  if (not dbConn->connect(dbHost, dbPort, dbName, dbUser, dbPass)) {
     return EXIT_FAILURE;
   }
 
-  auto selectUsers = [=](){
+  auto selectUsers = [=]() {
     std::string query = "select * from users";
     auto usersInfo = dbConn->select(query);
 
     std::cout << "Users count " << usersInfo.size() << std::endl;
-    for (auto row : usersInfo)
-    {
-      for (auto val : row)
-      {
+    for (auto row : usersInfo) {
+      for (auto val : row) {
         std::cout << val << " ";
       }
       std::cout << std::endl;
@@ -45,20 +42,19 @@ int main(int argc, char *argv[]) {
   selectUsers();
 
   boost::uuids::uuid u = gen();
-  std::cout << "UUID " << boost::uuids::to_string(u) << std::endl;
-  std::string query = "insert into users (ID, name) values ('{uuid}', 'user 555')";
+
+  std::string query =
+      "insert into users (ID, name) values ('{uuid}', 'user 555')";
   boost::replace_all(query, "{uuid}", boost::uuids::to_string(u));
 
-  if (not dbConn->insert(query))
-  {
+  if (not dbConn->insert(query)) {
     return EXIT_FAILURE;
   }
 
   selectUsers();
 
   query = "delete from users where name = 'user 555'";
-  if (not dbConn->del(query))
-  {
+  if (not dbConn->del(query)) {
     return EXIT_FAILURE;
   }
 
