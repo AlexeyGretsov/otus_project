@@ -9,8 +9,21 @@ find_package(GTest REQUIRED)
 find_package(PostgreSQL REQUIRED)
 find_package(nlohmann_json REQUIRED)
 
+include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+
+set(SOURCES ${SOURCES}
+	main.cpp
+	db/pg_db_connection.cpp
+)
+
+set(HEADERS ${HEADERS}
+	db/i_db_connection.h
+	db/pg_db_connection.h
+)
+
 add_executable(${CMAKE_PROJECT_NAME} 
-    main.cpp
+	${SOURCES}
+	${HEADERS}
 )
 
 target_link_libraries(otus_final_project PRIVATE PostgreSQL::PostgreSQL nlohmann_json)
