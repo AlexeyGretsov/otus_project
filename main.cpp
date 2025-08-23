@@ -1,13 +1,20 @@
 #include <iostream>
 #include <memory>
+#include <regex>
 
 #include <boost/asio.hpp>
-//#include <libpq-fe.h>
+#include <boost/uuid/uuid.hpp>
+#include <boost/uuid/uuid_io.hpp>
+#include <boost/uuid/random_generator.hpp>
+#include <boost/algorithm/string/replace.hpp>
+
 #include "db/pg_db_connection.h"
 
 #include <nlohmann/json.hpp>
 
 int main(int argc, char *argv[]) {
+  boost::uuids::random_generator gen;
+
   std::string dbHost = "localhost";
   int dbPort = 5432;
   std::string dbName = "otus_messendger";
@@ -37,7 +44,11 @@ int main(int argc, char *argv[]) {
 
   selectUsers();
 
-  std::string query = "insert into users (ID, name) values ('e3f26aab-b5e9-4c92-89bd-ae89875b04bd', 'user 555')";
+  boost::uuids::uuid u = gen();
+  std::cout << "UUID " << boost::uuids::to_string(u) << std::endl;
+  std::string query = "insert into users (ID, name) values ('{uuid}', 'user 555')";
+  boost::replace_all(query, "{uuid}", boost::uuids::to_string(u));
+
   if (not dbConn->insert(query))
   {
     return EXIT_FAILURE;

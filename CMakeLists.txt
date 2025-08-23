@@ -8,8 +8,10 @@ enable_testing()
 find_package(GTest REQUIRED)
 find_package(PostgreSQL REQUIRED)
 find_package(nlohmann_json REQUIRED)
+find_package(Boost REQUIRED)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
 
 set(SOURCES ${SOURCES}
 	main.cpp
@@ -26,7 +28,11 @@ add_executable(${CMAKE_PROJECT_NAME}
 	${HEADERS}
 )
 
-target_link_libraries(otus_final_project PRIVATE PostgreSQL::PostgreSQL nlohmann_json)
+target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE 
+	${Boost_LIBRARIES} 
+	PostgreSQL::PostgreSQL 
+	nlohmann_json
+)
 
 set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON) 
 
