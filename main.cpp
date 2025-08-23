@@ -4,9 +4,9 @@
 #include <boost/asio.hpp>
 #include <libpq-fe.h>
 
-int main(int argc, char *argv[]) {
-  std::cout << "Hello, World!\n";
+#include <nlohmann/json.hpp>
 
+int main(int argc, char *argv[]) {
   std::string m_dbhost = "localhost";
   int m_dbport = 5432;
   std::string m_dbname = "otus_messendger";

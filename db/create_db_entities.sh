@@ -4,4 +4,5 @@ DBNAME=otus_messendger
 
 psql -U postgres < create_db.sql
 psql -U postgres -d ${DBNAME} < create_tables.sql
+psql -U postgres -d ${DBNAME} < inserts.sql
 

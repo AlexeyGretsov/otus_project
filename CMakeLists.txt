@@ -7,12 +7,13 @@ project(otus_final_project)
 enable_testing()
 find_package(GTest REQUIRED)
 find_package(PostgreSQL REQUIRED)
+find_package(nlohmann_json REQUIRED)
 
 add_executable(${CMAKE_PROJECT_NAME} 
     main.cpp
 )
 
-target_link_libraries(otus_final_project PRIVATE PostgreSQL::PostgreSQL)
+target_link_libraries(otus_final_project PRIVATE PostgreSQL::PostgreSQL nlohmann_json)
 
 set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON) 
 
