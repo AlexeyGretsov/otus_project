@@ -29,11 +29,16 @@ bool PgDbConnection::connect(std::string_view dbHost, int dbPort, std::string_vi
         return false;
     }
 
+    std::cout << "PgDbConnection::connect: connection opened with host '"
+            << dbHost << "'" << std::endl;
+
     return true;
 }
 
 bool PgDbConnection::disconnect()
 {
+    std::cout << "PgDbConnection::disconnect ..." << std::endl;
+
     PQfinish(dbConn);
 
     return true;
@@ -51,7 +56,13 @@ std::vector<std::vector<std::string>> PgDbConnection::select(std::string_view qu
         return result;
     }
 
-    PQsendQuery(dbConn, query.data());
+    if (not PQsendQuery(dbConn, query.data()))
+    {
+        std::cerr << "[PgDbConnection::select] query error: "
+            << PQerrorMessage(dbConn) << std::endl;
+
+        return result;
+    }
 
     while (auto res = PQgetResult(dbConn)) 
     {
@@ -92,6 +103,25 @@ bool PgDbConnection::insert(std::string_view query)
         return false;
     }
 
+    if (not PQsendQuery(dbConn, query.data()))
+    {
+        std::cerr << "[PgDbConnection::insert] query error: "
+            << PQerrorMessage(dbConn) << std::endl;
+
+        return false;
+    }
+
+    while (auto res = PQgetResult(dbConn)) 
+    {
+        if (PQresultStatus(res) != PGRES_COMMAND_OK) 
+        {
+            std::cerr << "[PgDbConnection::insert] query result error: " 
+                << PQerrorMessage(dbConn) << std::endl;
+        }
+
+        PQclear(res);
+    }
+
     return true;
 } 
 
@@ -103,6 +133,25 @@ bool PgDbConnection::del(std::string_view query)
                     "Connection not extablished" << std::endl;
 
         return false;
+    }
+
+    if (not PQsendQuery(dbConn, query.data()))
+    {
+        std::cerr << "[PgDbConnection::del] query error: "
+            << PQerrorMessage(dbConn) << std::endl;
+
+        return false;
+    }
+
+    while (auto res = PQgetResult(dbConn)) 
+    {
+        if (PQresultStatus(res) != PGRES_COMMAND_OK) 
+        {
+            std::cerr << "[PgDbConnection::del] query result error: " 
+                << PQerrorMessage(dbConn) << std::endl;
+        }
+
+        PQclear(res);
     }
 
     return true;
