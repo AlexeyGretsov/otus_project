@@ -1,0 +1,13 @@
+{
+	"message" : {
+		"id" : "81b332e5-f4c5-46d8-9f22-e8d1f7433d58",
+		"from" : "4cc7b2e7-f11a-47a3-ab35-c9d4e5f6364d",
+		"to" : "fd0c7575-e4d7-4590-b0e7-c32481f75d27",
+		"date" : "2025-08-23T12:13:15.678Z",
+		"json" : {
+			"type" : "status",
+			"message_id" : "cbc69714-cb4d-437b-824e-c89750dd2699",
+			"status" : "received"
+		}
+	}
+}

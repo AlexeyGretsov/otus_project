@@ -26,6 +26,9 @@ jobs:
     - name: Install boost asio
       run: sudo apt-get install -y libasio-dev
 
+    - name: Install lohmann JSON
+      run: sudo apt-get install -y nlohmann-json3-dev
+
     - name: Coding Style checks
       run: ${{github.workspace}}/format.sh check
 
