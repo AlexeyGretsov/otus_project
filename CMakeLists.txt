@@ -16,11 +16,13 @@ include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
 set(SOURCES ${SOURCES}
 	main.cpp
 	db/pg_db_connection.cpp
+	include/message.cpp
 )
 
 set(HEADERS ${HEADERS}
 	db/i_db_connection.h
 	db/pg_db_connection.h
+	include/message.h
 )
 
 add_executable(${CMAKE_PROJECT_NAME} 
