@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS messages
 	from_user_id UUID NOT NULL,
 	to_user_id UUID NOT NULL,
 	accepted TIMESTAMP WITHOUT TIME ZONE NOT NULL,
-	message TEXT NOT NULL
+	message JSON NOT NULL
 );
 
 
