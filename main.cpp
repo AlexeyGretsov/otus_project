@@ -104,5 +104,7 @@ int main(int argc, char *argv[]) {
   Message msg2;
   msg2.fromJson(json2);
 
+  std::cout << msg2.toJson() << std::endl;
+
   return 0;
 }

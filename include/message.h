@@ -6,48 +6,42 @@
 #include <boost/uuid/uuid.hpp>
 #include <boost/uuid/uuid_io.hpp>
 
-struct MessageJson
-{
-    MessageJson() = default;
-    virtual ~MessageJson(){}
+struct MessageJson {
+  MessageJson() = default;
+  virtual ~MessageJson() {}
 
-    virtual void print() = 0;
+  virtual void print() = 0;
 
-    std::string type;
+  std::string type;
 };
 
-struct TextMessageJson : public MessageJson
-{
-    TextMessageJson();
+struct TextMessageJson : public MessageJson {
+  TextMessageJson();
 
-    void print() override;
+  void print() override;
 
-    std::string text;
+  std::string text;
 };
 
-struct StatusMessageJson : public MessageJson
-{
-    StatusMessageJson();
+struct StatusMessageJson : public MessageJson {
+  StatusMessageJson();
 
-    void print() override;
-    
-    boost::uuids::uuid message_id;
-    std::string status;
+  void print() override;
+
+  boost::uuids::uuid message_id;
+  std::string status;
 };
 
+struct Message {
+  Message();
+  ~Message();
 
+  bool fromJson(std::string_view source);
+  std::string toJson() const;
 
-struct Message
-{
-    Message();
-    ~Message();
-
-    bool fromJson(std::string_view source);
-    std::string toJson() const;
-
-    boost::uuids::uuid id;
-    boost::uuids::uuid from;
-    boost::uuids::uuid to;
-    time_t date{0};
-    MessageJson *json{nullptr};
+  boost::uuids::uuid id;
+  boost::uuids::uuid from;
+  boost::uuids::uuid to;
+  time_t date{0};
+  MessageJson *json{nullptr};
 };
