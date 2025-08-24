@@ -58,6 +58,8 @@ Message::~Message() {
   }
 }
 
+bool Message::isValid() const { return date != 0; }
+
 bool Message::fromJson(std::string_view source) {
   nlohmann::json parsed_json = nlohmann::json::parse(source);
 

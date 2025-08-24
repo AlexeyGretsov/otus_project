@@ -13,6 +13,7 @@ public:
   virtual bool connect(std::string_view dbHost, int dbPort,
                        std::string_view dbName, std::string_view dbUser,
                        std::string_view dbPassword) = 0;
+  virtual bool isConnected() const = 0;
 
   virtual bool disconnect() = 0;
 

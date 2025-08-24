@@ -35,6 +35,10 @@ bool PgDbConnection::disconnect() {
   return true;
 }
 
+bool PgDbConnection::isConnected() const {
+  return PQstatus(dbConn) == CONNECTION_OK;
+}
+
 std::vector<std::vector<std::string>>
 PgDbConnection::select(std::string_view query) {
   std::vector<std::vector<std::string>> result;

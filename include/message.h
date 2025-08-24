@@ -36,6 +36,7 @@ struct Message {
   Message();
   ~Message();
 
+  bool isValid() const;
   bool fromJson(std::string_view source);
   std::string toJson() const;
 
