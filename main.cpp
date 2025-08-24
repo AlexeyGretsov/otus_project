@@ -104,7 +104,13 @@ int main(int argc, char *argv[]) {
   Message msg2;
   msg2.fromJson(json2);
 
+  std::cout << msg.toJson() << std::endl;
   std::cout << msg2.toJson() << std::endl;
+
+  Message msg3;
+  msg3.fromJson(msg2.toJson());
+
+  std::cout << "Msg3: " << msg3.toJson() << std::endl;
 
   return 0;
 }

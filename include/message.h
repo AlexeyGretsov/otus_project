@@ -10,7 +10,7 @@ struct MessageJson {
   MessageJson() = default;
   virtual ~MessageJson() {}
 
-  virtual void print() = 0;
+  virtual std::string toString() const = 0;
 
   std::string type;
 };
@@ -18,7 +18,7 @@ struct MessageJson {
 struct TextMessageJson : public MessageJson {
   TextMessageJson();
 
-  void print() override;
+  std::string toString() const override;
 
   std::string text;
 };
@@ -26,7 +26,7 @@ struct TextMessageJson : public MessageJson {
 struct StatusMessageJson : public MessageJson {
   StatusMessageJson();
 
-  void print() override;
+  std::string toString() const override;
 
   boost::uuids::uuid message_id;
   std::string status;

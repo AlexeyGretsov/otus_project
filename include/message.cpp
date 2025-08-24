@@ -31,17 +31,23 @@ MessageJson *createMessageJson(nlohmann::json &parsed_json) {
 
 TextMessageJson::TextMessageJson() { type = "text"; }
 
-void TextMessageJson::print() {
-  std::cout << "type: " << type << std::endl;
-  std::cout << "text: " << text << std::endl;
+std::string TextMessageJson::toString() const {
+  nlohmann::json json;
+  json["type"] = type;
+  json["text"] = text;
+
+  return json.dump();
 }
 
 StatusMessageJson::StatusMessageJson() { type = "status"; }
 
-void StatusMessageJson::print() {
-  std::cout << "type: " << type << std::endl;
-  std::cout << "message_id: " << message_id << std::endl;
-  std::cout << "status: " << status << std::endl;
+std::string StatusMessageJson::toString() const {
+  nlohmann::json json;
+  json["type"] = type;
+  json["message_id"] = boost::uuids::to_string(message_id);
+  json["status"] = status;
+
+  return json.dump();
 }
 
 Message::Message() {}
@@ -52,8 +58,7 @@ Message::~Message() {
   }
 }
 
-bool Message::fromJson(std::string_view source)
-{
+bool Message::fromJson(std::string_view source) {
   nlohmann::json parsed_json = nlohmann::json::parse(source);
 
   boost::uuids::string_generator gen;
@@ -74,16 +79,7 @@ bool Message::fromJson(std::string_view source)
   }
 
   date = mktime(&tmStruct);
-
-  std::cout << "id: " << id << std::endl;
-  std::cout << "from: " << from << std::endl;
-  std::cout << "to: " << to << std::endl;
-  std::cout << "date: " << date << std::endl;
-
   json = createMessageJson(parsed_json);
-  if (json) {
-    json->print();
-  }
 
   return true;
 }
@@ -94,6 +90,14 @@ std::string Message::toJson() const {
   msg_json["message"]["id"] = boost::uuids::to_string(id);
   msg_json["message"]["from"] = boost::uuids::to_string(from);
   msg_json["message"]["to"] = boost::uuids::to_string(to);
-  
+
+  char timeString[std::size("yyyy-mm-ddThh:mm:ssZ")];
+  std::strftime(std::data(timeString), std::size(timeString), "%FT%TZ",
+                std::gmtime(&date));
+  msg_json["message"]["date"] = timeString;
+  if (json) {
+    msg_json["message"]["json"] = nlohmann::json::parse(json->toString());
+  }
+
   return msg_json.dump(4);
 }
