@@ -1,11 +1,11 @@
+#include <deque>
 #include <iostream>
 #include <list>
 #include <memory>
-#include <deque>
 #include <set>
 
-#include <boost/shared_ptr.hpp>
 #include <boost/asio.hpp>
+#include <boost/shared_ptr.hpp>
 
 #include "tests/db_manager_test.h"
 #include "tests/db_test.h"
