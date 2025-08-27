@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.28)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE INTERNAL "") 
 
-project(otus_final_project)
+project(otus_messendger)
 
 enable_testing()
 find_package(GTest REQUIRED)
@@ -14,7 +14,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/tests)
 include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
 
-set(SOURCES ${SOURCES}
+set(SERVER_SOURCES ${SERVER_SOURCES}
 	main.cpp
 	db/pg_db_connection.cpp
 	db/db_manager.cpp
@@ -25,7 +25,7 @@ set(SOURCES ${SOURCES}
 	tests/db_manager_test.cpp
 )
 
-set(HEADERS ${HEADERS}
+set(SERVER_HEADERS ${SERVER_HEADERS}
 	db/i_db_connection.h
 	db/pg_db_connection.h
 	db/db_manager.h
@@ -36,33 +36,40 @@ set(HEADERS ${HEADERS}
 	tests/db_manager_test.h
 )
 
-set(ASIO_CLIENT_SOURCES ${ASIO_CLIENT_SOURCES}
-	asio_client_main.cpp
+set(CLIENT_SOURCES ${CLIENT_SOURCES}
+	client_main.cpp
+	include/message.cpp
 )
 
-add_executable(${CMAKE_PROJECT_NAME} 
-	${SOURCES}
-	${HEADERS}
+set(CLIENT_HEADERS ${CLIENT_HEADERS}
+	include/message.h
 )
 
-add_executable(asio_client 
-	${ASIO_CLIENT_SOURCES}
+add_executable(${CMAKE_PROJECT_NAME}_server 
+	${SERVER_SOURCES}
+	${SERVER_HEADERS}
 )
 
-target_link_libraries(asio_client PRIVATE 
-	${Boost_LIBRARIES} 
-	nlohmann_json
+add_executable(${CMAKE_PROJECT_NAME}_client
+	${CLIENT_SOURCES}
+	${CLIENT_HEADERS}
 )
 
-target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE 
+target_link_libraries(${CMAKE_PROJECT_NAME}_server PRIVATE 
 	${Boost_LIBRARIES} 
 	PostgreSQL::PostgreSQL 
 	nlohmann_json
 )
 
-set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON) 
+target_link_libraries(${CMAKE_PROJECT_NAME}_client PRIVATE 
+	${Boost_LIBRARIES} 
+)
 
-install(TARGETS ${CMAKE_PROJECT_NAME} RUNTIME DESTINATION bin)
+set_target_properties(${CMAKE_PROJECT_NAME}_server PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON) 
+set_target_properties(${CMAKE_PROJECT_NAME}_client PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON) 
+
+install(TARGETS ${CMAKE_PROJECT_NAME}_server RUNTIME DESTINATION bin)
+install(TARGETS ${CMAKE_PROJECT_NAME}_client RUNTIME DESTINATION bin)
 
 if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
     set(CPACK_GENERATOR TGZ)
