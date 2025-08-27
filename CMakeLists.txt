@@ -11,6 +11,7 @@ find_package(nlohmann_json REQUIRED)
 find_package(Boost REQUIRED)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/tests)
 include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
 
 set(SOURCES ${SOURCES}
@@ -18,6 +19,10 @@ set(SOURCES ${SOURCES}
 	db/pg_db_connection.cpp
 	db/db_manager.cpp
 	include/message.cpp
+
+	tests/db_test.cpp
+	tests/json_test.cpp
+	tests/db_manager_test.cpp
 )
 
 set(HEADERS ${HEADERS}
@@ -25,11 +30,28 @@ set(HEADERS ${HEADERS}
 	db/pg_db_connection.h
 	db/db_manager.h
 	include/message.h
+
+	tests/db_test.h
+	tests/json_test.h
+	tests/db_manager_test.h
+)
+
+set(ASIO_CLIENT_SOURCES ${ASIO_CLIENT_SOURCES}
+	asio_client_main.cpp
 )
 
 add_executable(${CMAKE_PROJECT_NAME} 
 	${SOURCES}
 	${HEADERS}
+)
+
+add_executable(asio_client 
+	${ASIO_CLIENT_SOURCES}
+)
+
+target_link_libraries(asio_client PRIVATE 
+	${Boost_LIBRARIES} 
+	nlohmann_json
 )
 
 target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE 
