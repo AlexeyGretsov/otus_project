@@ -23,6 +23,7 @@ set(SERVER_SOURCES ${SERVER_SOURCES}
 	tests/db_test.cpp
 	tests/json_test.cpp
 	tests/db_manager_test.cpp
+	tests/message_test.cpp
 )
 
 set(SERVER_HEADERS ${SERVER_HEADERS}
@@ -34,6 +35,7 @@ set(SERVER_HEADERS ${SERVER_HEADERS}
 	tests/db_test.h
 	tests/json_test.h
 	tests/db_manager_test.h
+	tests/message_test.h
 )
 
 set(CLIENT_SOURCES ${CLIENT_SOURCES}

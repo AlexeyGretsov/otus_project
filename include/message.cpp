@@ -30,6 +30,14 @@ MessageJson *createMessageJson(nlohmann::json &parsed_json) {
 } // namespace
 
 TextMessageJson::TextMessageJson() { type = "text"; }
+TextMessageJson::TextMessageJson(std::string_view text) {
+  type = "text";
+  this->text = text;
+}
+
+TextMessageJson *TextMessageJson::copy() const {
+  return new TextMessageJson(text);
+}
 
 std::string TextMessageJson::toString() const {
   nlohmann::json json;
@@ -40,6 +48,15 @@ std::string TextMessageJson::toString() const {
 }
 
 StatusMessageJson::StatusMessageJson() { type = "status"; }
+StatusMessageJson::StatusMessageJson(const boost::uuids::uuid message_id,
+                                     std::string_view status) {
+  this->message_id = message_id;
+  this->status = status;
+}
+
+StatusMessageJson *StatusMessageJson::copy() const {
+  return new StatusMessageJson(message_id, status);
+}
 
 std::string StatusMessageJson::toString() const {
   nlohmann::json json;
@@ -50,12 +67,67 @@ std::string StatusMessageJson::toString() const {
   return json.dump();
 }
 
-Message::Message() {}
+Message::Message() {
+  boost::uuids::random_generator gen;
+  id = gen();
+  date = time(0);
+}
+
+Message::Message(const Message &other) {
+  id = other.id;
+  from = other.from;
+  to = other.to;
+  date = other.date;
+  if (json) {
+    delete json;
+    json = nullptr;
+  }
+  if (other.json) {
+    json = other.json->copy();
+  }
+}
+
+Message::Message(Message &&other) {
+  id = std::move(other.id);
+  from = std::move(other.from);
+  to = std::move(other.to);
+  date = other.date;
+  json = std::exchange(other.json, nullptr);
+}
 
 Message::~Message() {
   if (json) {
     delete json;
   }
+}
+
+Message &Message::operator=(const Message &other) {
+  if (this != &other) {
+    id = other.id;
+    from = other.from;
+    to = other.to;
+    date = other.date;
+    if (json) {
+      delete json;
+      json = nullptr;
+    }
+    if (other.json) {
+      json = other.json->copy();
+    }
+  }
+
+  return *this;
+}
+
+Message &Message::operator=(Message &&other) {
+  if (this != &other) {
+    id = std::move(other.id);
+    from = std::move(other.from);
+    to = std::move(other.to);
+    date = other.date;
+    json = std::exchange(other.json, nullptr);
+  }
+  return *this;
 }
 
 bool Message::isValid() const { return date != 0; }
@@ -102,4 +174,13 @@ std::string Message::toJson() const {
   }
 
   return msg_json.dump(4);
+}
+
+TextMessage::TextMessage(const boost::uuids::uuid &from,
+                         const boost::uuids::uuid &to, std::string_view text)
+    : Message() {
+  this->from = from;
+  this->to = to;
+
+  json = new TextMessageJson(text);
 }

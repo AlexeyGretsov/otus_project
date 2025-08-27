@@ -4,111 +4,112 @@
 #include <iostream>
 #include <thread>
 
+#include "include/message.h"
 #include "include/transfer_message.h"
 
 using boost::asio::ip::tcp;
 
-typedef std::deque<TransferMessage> TransferMessage_queue;
+typedef std::deque<TransferMessage> TransferMessageQueue;
 
-class chat_client {
+class Client {
 public:
-  chat_client(boost::asio::io_context &io_context,
-              const tcp::resolver::results_type &endpoints)
-      : io_context_(io_context), socket_(io_context) {
-    do_connect(endpoints);
+  Client(boost::asio::io_context &io_context,
+         const tcp::resolver::results_type &endpoints)
+      : io_context(io_context), socket(io_context) {
+    doConnect(endpoints);
   }
 
   void write(const TransferMessage &msg) {
     std::cout << "write msg" << msg.getBody() << std::endl;
-    boost::asio::post(io_context_, [this, msg]() {
-      bool write_in_progress = !write_msgs_.empty();
+    boost::asio::post(io_context, [this, msg]() {
+      bool write_in_progress = !writeMessages.empty();
 
       std::cout << "write in progress" << write_in_progress << std::endl;
 
-      write_msgs_.push_back(msg);
+      writeMessages.push_back(msg);
       if (!write_in_progress) {
-        std::cout << "do_write" << std::endl;
-        do_write();
+        std::cout << "doWrite" << std::endl;
+        doWrite();
       }
     });
   }
 
   void close() {
-    boost::asio::post(io_context_, [this]() { socket_.close(); });
+    boost::asio::post(io_context, [this]() { socket.close(); });
   }
 
 private:
-  void do_connect(const tcp::resolver::results_type &endpoints) {
+  void doConnect(const tcp::resolver::results_type &endpoints) {
     boost::asio::async_connect(
-        socket_, endpoints,
-        [this](boost::system::error_code ec, tcp::endpoint) {
+        socket, endpoints, [this](boost::system::error_code ec, tcp::endpoint) {
           if (!ec) {
             std::cout << "Connection extablished" << std::endl;
-            do_read_header();
+            doReadHeader();
           }
         });
   }
 
-  void do_read_header() {
+  void doReadHeader() {
     boost::asio::async_read(
-        socket_,
-        boost::asio::buffer(read_msg_.getData(), TransferMessage::headerLength),
+        socket,
+        boost::asio::buffer(readMessage.getData(),
+                            TransferMessage::headerLength),
         [this](boost::system::error_code ec, std::size_t /*length*/) {
-          if (!ec && read_msg_.decodeHeader()) {
-            do_read_body();
+          if (!ec && readMessage.decodeHeader()) {
+            doReadBody();
           } else {
-            socket_.close();
+            socket.close();
           }
         });
   }
 
-  void do_read_body() {
+  void doReadBody() {
     boost::asio::async_read(
-        socket_,
-        boost::asio::buffer(read_msg_.getBody(), read_msg_.getBodyLength()),
+        socket,
+        boost::asio::buffer(readMessage.getBody(), readMessage.getBodyLength()),
         [this](boost::system::error_code ec, std::size_t /*length*/) {
           if (!ec) {
-            std::cout.write(read_msg_.getBody(), read_msg_.getBodyLength());
+            std::cout.write(readMessage.getBody(), readMessage.getBodyLength());
             std::cout << "\n";
-            do_read_header();
+            doReadHeader();
           } else {
-            socket_.close();
+            socket.close();
           }
         });
   }
 
-  void do_write() {
-    std::cout << "do_write" << std::endl;
+  void doWrite() {
+    std::cout << "doWrite" << std::endl;
 
     boost::asio::async_write(
-        socket_,
-        boost::asio::buffer(write_msgs_.front().getData(),
-                            write_msgs_.front().length()),
+        socket,
+        boost::asio::buffer(writeMessages.front().getData(),
+                            writeMessages.front().length()),
         [this](boost::system::error_code ec, std::size_t /*length*/) {
           if (!ec) {
-            std::cout << "do_write done" << std::endl;
-            write_msgs_.pop_front();
-            if (!write_msgs_.empty()) {
-              std::cout << "do_write more" << std::endl;
-              do_write();
+            std::cout << "doWrite done" << std::endl;
+            writeMessages.pop_front();
+            if (!writeMessages.empty()) {
+              std::cout << "doWrite more" << std::endl;
+              doWrite();
             }
           } else {
-            socket_.close();
+            socket.close();
           }
         });
   }
 
 private:
-  boost::asio::io_context &io_context_;
-  tcp::socket socket_;
-  TransferMessage read_msg_;
-  TransferMessage_queue write_msgs_;
+  boost::asio::io_context &io_context;
+  tcp::socket socket;
+  TransferMessage readMessage;
+  TransferMessageQueue writeMessages;
 };
 
 int main(int argc, char *argv[]) {
   try {
     if (argc != 3) {
-      std::cerr << "Usage: chat_client <host> <port>\n";
+      std::cerr << "Usage: Client <host> <port>\n";
       return 1;
     }
 
@@ -116,18 +117,22 @@ int main(int argc, char *argv[]) {
 
     tcp::resolver resolver(io_context);
     auto endpoints = resolver.resolve(argv[1], argv[2]);
-    chat_client c(io_context, endpoints);
+    Client c(io_context, endpoints);
 
     std::thread t([&io_context]() { io_context.run(); });
 
     char line[TransferMessage::MAX_BODY_LENGTH + 1];
     while (std::cin.getline(line, TransferMessage::MAX_BODY_LENGTH + 1)) {
-      TransferMessage msg;
-      msg.setBodyLength(std::strlen(line));
-      std::memcpy(msg.getBody(), line, msg.getBodyLength());
-      msg.encodeHeader();
 
-      c.write(msg);
+      Message msg;
+
+      TransferMessage transferMessage;
+      transferMessage.setBodyLength(std::strlen(line));
+      std::memcpy(transferMessage.getBody(), msg.toJson().c_str(),
+                  transferMessage.getBodyLength());
+      transferMessage.encodeHeader();
+
+      c.write(transferMessage);
     }
 
     c.close();

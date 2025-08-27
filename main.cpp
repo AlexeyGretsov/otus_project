@@ -10,6 +10,7 @@
 #include "tests/db_manager_test.h"
 #include "tests/db_test.h"
 #include "tests/json_test.h"
+#include "tests/message_test.h"
 
 #include "include/transfer_message.h"
 
@@ -17,7 +18,7 @@
 
 using boost::asio::ip::tcp;
 
-typedef std::deque<TransferMessage> transferMessageQueue;
+typedef std::deque<TransferMessage> TransferMessageQueue;
 
 class chat_participant {
 public:
@@ -51,42 +52,43 @@ public:
 private:
   std::set<chat_participant_ptr> participants_;
   enum { max_recent_msgs = 100 };
-  transferMessageQueue recent_msgs_;
+  TransferMessageQueue recent_msgs_;
 };
 
-class chat_session : public chat_participant,
-                     public std::enable_shared_from_this<chat_session> {
+class Session : public chat_participant,
+                public std::enable_shared_from_this<Session> {
 public:
-  chat_session(tcp::socket socket, chat_room &room)
-      : socket_(std::move(socket)), room_(room) {}
+  Session(tcp::socket socket, chat_room &room)
+      : socket(std::move(socket)), room_(room) {}
 
   void start() {
     std::cout << "Session starting" << std::endl;
     room_.join(shared_from_this());
-    do_read_header();
+    doReadHeader();
   }
 
   void deliver(const TransferMessage &msg) {
-    bool write_in_progress = !write_msgs_.empty();
-    write_msgs_.push_back(msg);
+    bool write_in_progress = !writeMessages.empty();
+    writeMessages.push_back(msg);
     if (!write_in_progress) {
-      do_write();
+      doWrite();
     }
   }
 
 private:
-  void do_read_header() {
-    std::cout << "do_read_header" << std::endl;
+  void doReadHeader() {
+    std::cout << "doReadHeader" << std::endl;
 
     auto self(shared_from_this());
     boost::asio::async_read(
-        socket_,
-        boost::asio::buffer(read_msg_.getData(), TransferMessage::headerLength),
+        socket,
+        boost::asio::buffer(readMessage.getData(),
+                            TransferMessage::headerLength),
         [this, self](boost::system::error_code ec, std::size_t /*length*/) {
           std::cout << "async_read header" << std::endl;
-          if (!ec && read_msg_.decodeHeader()) {
+          if (!ec && readMessage.decodeHeader()) {
 
-            do_read_body();
+            doReadBody();
           } else {
             std::cout << "leave room" << std::endl;
             room_.leave(shared_from_this());
@@ -94,34 +96,34 @@ private:
         });
   }
 
-  void do_read_body() {
-    std::cout << "do_read_body" << std::endl;
+  void doReadBody() {
+    std::cout << "doReadBody" << std::endl;
     auto self(shared_from_this());
     boost::asio::async_read(
-        socket_,
-        boost::asio::buffer(read_msg_.getBody(), read_msg_.getBodyLength()),
+        socket,
+        boost::asio::buffer(readMessage.getBody(), readMessage.getBodyLength()),
         [this, self](boost::system::error_code ec, std::size_t /*length*/) {
           std::cout << "async_read body" << std::endl;
           if (!ec) {
-            room_.deliver(read_msg_);
-            do_read_header();
+            room_.deliver(readMessage);
+            doReadHeader();
           } else {
             room_.leave(shared_from_this());
           }
         });
   }
 
-  void do_write() {
+  void doWrite() {
     auto self(shared_from_this());
     boost::asio::async_write(
-        socket_,
-        boost::asio::buffer(write_msgs_.front().getData(),
-                            write_msgs_.front().length()),
+        socket,
+        boost::asio::buffer(writeMessages.front().getData(),
+                            writeMessages.front().length()),
         [this, self](boost::system::error_code ec, std::size_t /*length*/) {
           if (!ec) {
-            write_msgs_.pop_front();
-            if (!write_msgs_.empty()) {
-              do_write();
+            writeMessages.pop_front();
+            if (!writeMessages.empty()) {
+              doWrite();
             }
           } else {
             room_.leave(shared_from_this());
@@ -129,34 +131,33 @@ private:
         });
   }
 
-  tcp::socket socket_;
+  tcp::socket socket;
   chat_room &room_;
-  TransferMessage read_msg_;
-  transferMessageQueue write_msgs_;
+  TransferMessage readMessage;
+  TransferMessageQueue writeMessages;
 };
 
-class chat_server {
+class Server {
 public:
-  chat_server(boost::asio::io_context &io_context,
-              const tcp::endpoint &endpoint)
-      : acceptor_(io_context, endpoint) {
-    do_accept();
+  Server(boost::asio::io_context &io_context, const tcp::endpoint &endpoint)
+      : acceptor(io_context, endpoint) {
+    doAccept();
   }
 
 private:
-  void do_accept() {
-    acceptor_.async_accept(
+  void doAccept() {
+    acceptor.async_accept(
         [this](boost::system::error_code ec, tcp::socket socket) {
           if (!ec) {
             std::cout << "Accept conection" << std::endl;
-            std::make_shared<chat_session>(std::move(socket), room_)->start();
+            std::make_shared<Session>(std::move(socket), room_)->start();
           }
 
-          do_accept();
+          doAccept();
         });
   }
 
-  tcp::acceptor acceptor_;
+  tcp::acceptor acceptor;
   chat_room room_;
 };
 
@@ -169,21 +170,25 @@ int main(int argc, char *argv[]) {
   if (not Tests::jsonTest()) {
     return EXIT_FAILURE;
   }
-
   if (not Tests::dbManagerTest()) {
     return EXIT_FAILURE;
   }
+  if (not Tests::messageTest()) {
+    return EXIT_FAILURE;
+  }
+
+  return 0;
 #endif
 
   try {
     if (argc < 2) {
-      std::cerr << "Usage: chat_server <port> [<port> ...]\n";
+      std::cerr << "Usage: Server <port> [<port> ...]\n";
       return 1;
     }
 
     boost::asio::io_context io_context;
 
-    std::list<chat_server> servers;
+    std::list<Server> servers;
     for (int i = 1; i < argc; ++i) {
       tcp::endpoint endpoint(tcp::v4(), std::atoi(argv[i]));
       servers.emplace_back(io_context, endpoint);
