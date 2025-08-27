@@ -121,14 +121,22 @@ int main(int argc, char *argv[]) {
 
     std::thread t([&io_context]() { io_context.run(); });
 
+    boost::uuids::random_generator gen;
+    boost::uuids::uuid from = gen();
+    boost::uuids::uuid to = gen();
+
     char line[TransferMessage::MAX_BODY_LENGTH + 1];
     while (std::cin.getline(line, TransferMessage::MAX_BODY_LENGTH + 1)) {
 
-      Message msg;
+      if (std::strlen(line) == 0) {
+        continue;
+      }
+      TextMessage msg(from, to, line);
+      std::string json = msg.toJson();
 
       TransferMessage transferMessage;
-      transferMessage.setBodyLength(std::strlen(line));
-      std::memcpy(transferMessage.getBody(), msg.toJson().c_str(),
+      transferMessage.setBodyLength(json.length());
+      std::memcpy(transferMessage.getBody(), json.c_str(),
                   transferMessage.getBodyLength());
       transferMessage.encodeHeader();
 
