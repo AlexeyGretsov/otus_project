@@ -22,11 +22,8 @@ public:
   }
 
   void write(const TransferMessage &msg) {
-    std::cout << "write msg" << msg.getBody() << std::endl;
     boost::asio::post(io_context, [this, msg]() {
       bool write_in_progress = !writeMessages.empty();
-
-      std::cout << "write in progress" << write_in_progress << std::endl;
 
       writeMessages.push_back(msg);
       if (!write_in_progress) {
@@ -81,18 +78,14 @@ private:
   }
 
   void doWrite() {
-    std::cout << "doWrite" << std::endl;
-
     boost::asio::async_write(
         socket,
         boost::asio::buffer(writeMessages.front().getData(),
                             writeMessages.front().length()),
         [this](boost::system::error_code ec, std::size_t /*length*/) {
           if (!ec) {
-            std::cout << "doWrite done" << std::endl;
             writeMessages.pop_front();
             if (!writeMessages.empty()) {
-              std::cout << "doWrite more" << std::endl;
               doWrite();
             }
           } else {

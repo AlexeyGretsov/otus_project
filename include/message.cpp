@@ -24,11 +24,17 @@ MessageJson *createMessageJson(nlohmann::json &parsed_json) {
     result->status = json["status"];
 
     return result;
+  } else if (type == AuthMessageJson().type) {
+
+    return new AuthMessageJson();
   }
 
   return nullptr;
 }
 } // namespace
+
+const std::string Message::STATUS_PROCESSED = "processed";
+const std::string Message::STATUS_RECEIVED = "received";
 
 AuthMessageJson::AuthMessageJson() { type = "auth"; }
 
@@ -62,6 +68,7 @@ std::string TextMessageJson::toString() const {
 StatusMessageJson::StatusMessageJson() { type = "status"; }
 StatusMessageJson::StatusMessageJson(const boost::uuids::uuid message_id,
                                      std::string_view status) {
+  type = "status";
   this->message_id = message_id;
   this->status = status;
 }
@@ -146,6 +153,10 @@ Message &Message::operator=(Message &&other) {
 
 bool Message::isValid() const { return date != 0; }
 
+bool Message::isAuth() const {
+  return json and json->type == AuthMessageJson().type;
+}
+
 bool Message::fromJson(std::string_view source) {
   nlohmann::json parsed_json = nlohmann::json::parse(source);
 
@@ -202,4 +213,14 @@ TextMessage::TextMessage(const boost::uuids::uuid &from,
 AuthMessage::AuthMessage(const boost::uuids::uuid &my) : Message() {
   from = my;
   json = new AuthMessageJson();
+}
+
+StatusMessage::StatusMessage(const boost::uuids::uuid clientUuid,
+                             const boost::uuids::uuid message_id,
+                             std::string_view status)
+    : Message()
+
+{
+  to = clientUuid;
+  json = new StatusMessageJson(message_id, status);
 }

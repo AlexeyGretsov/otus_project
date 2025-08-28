@@ -12,6 +12,9 @@
 #include "tests/json_test.h"
 #include "tests/message_test.h"
 
+#include "db/db_manager.h"
+#include "db/pg_db_connection.h"
+#include "include/message.h"
 #include "include/transfer_message.h"
 
 // #define ENABLE_TESTS
@@ -19,97 +22,63 @@
 using boost::asio::ip::tcp;
 
 typedef std::deque<TransferMessage> TransferMessageQueue;
+using DbConnectionPtr = std::shared_ptr<Db::IDbConnection>;
 
-class chat_participant {
-public:
-  virtual ~chat_participant() {}
-  virtual void deliver(const TransferMessage &msg) = 0;
-};
+inline DbConnectionPtr createDbConnection() {
+  std::string dbHost = "localhost";
+  int dbPort = 5432;
+  std::string dbName = "otus_messendger";
+  std::string dbUser = "postgres";
+  std::string dbPass = "postgres";
 
-typedef std::shared_ptr<chat_participant> chat_participant_ptr;
-
-//
-class chat_room {
-public:
-  void join(chat_participant_ptr participant) {
-    participants_.insert(participant);
-    for (auto msg : recent_msgs_)
-      participant->deliver(msg);
+  DbConnectionPtr dbConn(new Db::PgDbConnection());
+  if (not dbConn->connect(dbHost, dbPort, dbName, dbUser, dbPass)) {
+    std::cerr << "Failed to connect DB" << std::endl;
+    return nullptr;
   }
 
-  void leave(chat_participant_ptr participant) {
-    participants_.erase(participant);
-  }
+  return dbConn;
+}
 
-  void deliver(const TransferMessage &msg) {
-    recent_msgs_.push_back(msg);
-    while (recent_msgs_.size() > max_recent_msgs)
-      recent_msgs_.pop_front();
-
-    for (auto participant : participants_)
-      participant->deliver(msg);
-  }
-
-private:
-  std::set<chat_participant_ptr> participants_;
-  enum { max_recent_msgs = 100 };
-  TransferMessageQueue recent_msgs_;
-};
-
-class Session : public chat_participant,
-                public std::enable_shared_from_this<Session> {
+class Session : public std::enable_shared_from_this<Session> {
 public:
-  Session(tcp::socket socket, chat_room &room)
-      : socket(std::move(socket)), room_(room) {}
+  Session(tcp::socket socket) : socket(std::move(socket)) {}
 
   void start() {
-    std::cout << "Session starting" << std::endl;
-    room_.join(shared_from_this());
-    doReadHeader();
-  }
+    dbConnectionPtr = createDbConnection();
+    if (not dbConnectionPtr) {
+      std::cerr << "Failed to start session: no DB connection" << std::endl;
 
-  void deliver(const TransferMessage &msg) {
-    bool write_in_progress = !writeMessages.empty();
-    writeMessages.push_back(msg);
-    if (!write_in_progress) {
-      doWrite();
+      return;
     }
+    std::cout << "Session starting" << std::endl;
+    doReadHeader();
   }
 
 private:
   void doReadHeader() {
-    std::cout << "doReadHeader" << std::endl;
-
     auto self(shared_from_this());
     boost::asio::async_read(
         socket,
         boost::asio::buffer(readMessage.getData(),
                             TransferMessage::headerLength),
         [this, self](boost::system::error_code ec, std::size_t /*length*/) {
-          std::cout << "async_read header" << std::endl;
           if (!ec && readMessage.decodeHeader()) {
-
             doReadBody();
-          } else {
-            std::cout << "leave room" << std::endl;
-            room_.leave(shared_from_this());
           }
         });
   }
 
   void doReadBody() {
-    std::cout << "doReadBody" << std::endl;
     auto self(shared_from_this());
     boost::asio::async_read(
         socket,
         boost::asio::buffer(readMessage.getBody(), readMessage.getBodyLength()),
         [this, self](boost::system::error_code ec, std::size_t /*length*/) {
-          std::cout << "async_read body" << std::endl;
           if (!ec) {
-            room_.deliver(readMessage);
+            saveMessage(readMessage);
+
             doReadHeader();
-          } else {
-            room_.leave(shared_from_this());
           }
         });
   }
@@ -126,16 +95,68 @@ private:
             if (!writeMessages.empty()) {
               doWrite();
             }
-          } else {
-            room_.leave(shared_from_this());
           }
         });
   }
 
+  bool saveMessage(const TransferMessage &readMessage) {
+    Message msg;
+    if (not msg.fromJson(readMessage.getBody())) {
+      std::cerr << "Failed to parse received message" << std::endl;
+
+      return false;
+    }
+
+    if (msg.isAuth()) {
+      std::cerr << "Received auth message " << msg.toJson();
+
+      clientUuid = msg.from;
+
+      return true;
+    }
+
+    auto save = [](DbConnectionPtr dbConnectionPtr,
+                   const Message *msg) -> bool {
+      // TODO think about DB transaction ...
+
+      DbManager dbManager(dbConnectionPtr);
+      if (not dbManager.saveMessage(*msg)) {
+        std::cerr << "Failed to save message to DB" << std::endl;
+
+        return false;
+      }
+      if (not dbManager.saveProcessedMessage(msg->id)) {
+        std::cerr << "Failed to save processed message to DB" << std::endl;
+        dbManager.deleteMessage(msg->id);
+
+        return false;
+      }
+
+      return true;
+    };
+
+    if (not save(dbConnectionPtr, &msg)) {
+      return false;
+    }
+
+    std::cerr << "Received message " << msg.toJson() << std::endl;
+
+    // Message to send back with status 'processed'
+    StatusMessage statusMsg(msg.from, msg.id, Message::STATUS_PROCESSED);
+
+    if (not save(dbConnectionPtr, &statusMsg)) {
+      return false;
+    }
+
+    std::cerr << "Message registered" << std::endl;
+    return true;
+  }
+
+  boost::uuids::uuid clientUuid;
   tcp::socket socket;
-  chat_room &room_;
   TransferMessage readMessage;
   TransferMessageQueue writeMessages;
+  DbConnectionPtr dbConnectionPtr;
 };
 
 class Server {
@@ -151,7 +172,7 @@ private:
         [this](boost::system::error_code ec, tcp::socket socket) {
           if (!ec) {
             std::cout << "Accept conection" << std::endl;
-            std::make_shared<Session>(std::move(socket), room_)->start();
+            std::make_shared<Session>(std::move(socket))->start();
           }
 
           doAccept();
@@ -159,7 +180,6 @@ private:
   }
 
   tcp::acceptor acceptor;
-  chat_room room_;
 };
 
 int main(int argc, char *argv[]) {

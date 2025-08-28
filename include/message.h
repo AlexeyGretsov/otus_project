@@ -46,6 +46,9 @@ struct StatusMessageJson : public MessageJson {
 };
 
 struct Message {
+  static const std::string STATUS_PROCESSED;
+  static const std::string STATUS_RECEIVED;
+
   Message();
   Message(const Message &other);
   Message(Message &&other);
@@ -55,6 +58,7 @@ struct Message {
   Message &operator=(Message &&other);
 
   bool isValid() const;
+  bool isAuth() const;
   bool fromJson(std::string_view source);
   std::string toJson() const;
 
@@ -72,4 +76,9 @@ struct TextMessage : public Message {
 
 struct AuthMessage : public Message {
   AuthMessage(const boost::uuids::uuid &my);
+};
+
+struct StatusMessage : public Message {
+  StatusMessage(const boost::uuids::uuid clientUuid,
+                const boost::uuids::uuid message_id, std::string_view status);
 };
