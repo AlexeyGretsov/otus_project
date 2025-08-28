@@ -4,6 +4,8 @@
 #include <iostream>
 #include <thread>
 
+#include <boost/uuid/string_generator.hpp>
+
 #include "include/message.h"
 #include "include/transfer_message.h"
 
@@ -106,11 +108,31 @@ private:
   TransferMessageQueue writeMessages;
 };
 
+inline void usage() {
+  std::cerr << "Usage: Client <host> <port> <my UUID> <remote UUID>\n";
+}
+
 int main(int argc, char *argv[]) {
   try {
-    if (argc != 3) {
-      std::cerr << "Usage: Client <host> <port>\n";
-      return 1;
+    if (argc != 5) {
+      usage();
+      return EXIT_FAILURE;
+    }
+
+    boost::uuids::string_generator sgen;
+    boost::uuids::uuid from = sgen(argv[3]);
+    boost::uuids::uuid to = sgen(argv[4]);
+
+    if (from.is_nil()) {
+      std::cerr << "Invalid parameter: my UUID" << std::endl;
+      usage();
+      return EXIT_FAILURE;
+    }
+
+    if (to.is_nil()) {
+      std::cerr << "Invalid parameter: remote UUID" << std::endl;
+      usage();
+      return EXIT_FAILURE;
     }
 
     boost::asio::io_context io_context;
@@ -121,9 +143,9 @@ int main(int argc, char *argv[]) {
 
     std::thread t([&io_context]() { io_context.run(); });
 
-    boost::uuids::random_generator gen;
-    boost::uuids::uuid from = gen();
-    boost::uuids::uuid to = gen();
+    // Send authorize message
+    TransferMessage transferMessage(AuthMessage(from).toJson());
+    c.write(transferMessage);
 
     char line[TransferMessage::MAX_BODY_LENGTH + 1];
     while (std::cin.getline(line, TransferMessage::MAX_BODY_LENGTH + 1)) {
@@ -132,15 +154,8 @@ int main(int argc, char *argv[]) {
         continue;
       }
       TextMessage msg(from, to, line);
-      std::string json = msg.toJson();
 
-      TransferMessage transferMessage;
-      transferMessage.setBodyLength(json.length());
-      std::memcpy(transferMessage.getBody(), json.c_str(),
-                  transferMessage.getBodyLength());
-      transferMessage.encodeHeader();
-
-      c.write(transferMessage);
+      c.write(TransferMessage(msg.toJson()));
     }
 
     c.close();

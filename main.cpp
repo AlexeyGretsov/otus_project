@@ -28,6 +28,7 @@ public:
 
 typedef std::shared_ptr<chat_participant> chat_participant_ptr;
 
+//
 class chat_room {
 public:
   void join(chat_participant_ptr participant) {

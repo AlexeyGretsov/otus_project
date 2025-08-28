@@ -10,6 +10,11 @@ public:
   static constexpr std::size_t MAX_BODY_LENGTH = 512;
 
   TransferMessage() : bodyLength(0) {}
+  TransferMessage(const std::string &source) {
+    setBodyLength(source.length());
+    std::memcpy(getBody(), source.c_str(), getBodyLength());
+    encodeHeader();
+  }
 
   const char *getData() const { return data; }
 

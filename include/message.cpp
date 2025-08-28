@@ -1,5 +1,6 @@
 #include "message.h"
 
+#include <boost/uuid/nil_generator.hpp>
 #include <boost/uuid/string_generator.hpp>
 #include <iostream>
 #include <sstream>
@@ -28,6 +29,17 @@ MessageJson *createMessageJson(nlohmann::json &parsed_json) {
   return nullptr;
 }
 } // namespace
+
+AuthMessageJson::AuthMessageJson() { type = "auth"; }
+
+AuthMessageJson *AuthMessageJson::copy() const { return new AuthMessageJson(); }
+
+std::string AuthMessageJson::toString() const {
+  nlohmann::json json;
+  json["type"] = type;
+
+  return json.dump();
+}
 
 TextMessageJson::TextMessageJson() { type = "text"; }
 TextMessageJson::TextMessageJson(std::string_view text) {
@@ -69,6 +81,8 @@ std::string StatusMessageJson::toString() const {
 
 Message::Message() {
   boost::uuids::random_generator gen;
+  boost::uuids::nil_generator nil_gen;
+  from = to = nil_gen();
   id = gen();
   date = time(0);
 }
@@ -183,4 +197,9 @@ TextMessage::TextMessage(const boost::uuids::uuid &from,
   this->to = to;
 
   json = new TextMessageJson(text);
+}
+
+AuthMessage::AuthMessage(const boost::uuids::uuid &my) : Message() {
+  from = my;
+  json = new AuthMessageJson();
 }

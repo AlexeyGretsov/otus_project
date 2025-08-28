@@ -16,6 +16,13 @@ struct MessageJson {
   std::string type;
 };
 
+struct AuthMessageJson : public MessageJson {
+  AuthMessageJson();
+
+  AuthMessageJson *copy() const override;
+  std::string toString() const override;
+};
+
 struct TextMessageJson : public MessageJson {
   TextMessageJson();
   TextMessageJson(std::string_view text);
@@ -61,4 +68,8 @@ struct Message {
 struct TextMessage : public Message {
   TextMessage(const boost::uuids::uuid &from, const boost::uuids::uuid &to,
               std::string_view text);
+};
+
+struct AuthMessage : public Message {
+  AuthMessage(const boost::uuids::uuid &my);
 };
