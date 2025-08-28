@@ -23,6 +23,7 @@ DROP TABLE IF EXISTS processed_messages;
 CREATE TABLE IF NOT EXISTS processed_messages
 (
 	registered TIMESTAMP WITHOUT TIME ZONE NOT NULL,
-	message_id UUID
+	to_user_id UUID NOT NULL,
+	message_id UUID NOT NULL
 );
 

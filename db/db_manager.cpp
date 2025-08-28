@@ -87,7 +87,8 @@ bool DbManager::deleteMessage(boost::uuids::uuid messageId) {
   return dbConn->del(query);
 }
 
-bool DbManager::saveProcessedMessage(boost::uuids::uuid messageId) {
+bool DbManager::saveProcessedMessage(boost::uuids::uuid clientId, 
+                                    boost::uuids::uuid messageId) {
   if (not dbConn->isConnected()) {
     std::cerr << "[DbManager::saveProcessedMessage] Unable to save processed "
                  "message: "
@@ -99,18 +100,22 @@ bool DbManager::saveProcessedMessage(boost::uuids::uuid messageId) {
   std::string query = R"(
         insert into processed_messages (
                 registered,
+                to_user_id,
                 message_id
             ) values (
                 now(),
+                '{to_user_id}',
                 '{id}'
             )
         )";
+  boost::replace_all(query, "{to_user_id}", boost::uuids::to_string(clientId));
   boost::replace_all(query, "{id}", boost::uuids::to_string(messageId));
 
   return dbConn->insert(query);
 }
 
-std::vector<boost::uuids::uuid> DbManager::loadProcessedMessages() {
+std::vector<boost::uuids::uuid> DbManager::loadProcessedMessages(
+        boost::uuids::uuid clientId) {
   std::vector<boost::uuids::uuid> result;
 
   if (not dbConn->isConnected()) {
@@ -126,10 +131,14 @@ std::vector<boost::uuids::uuid> DbManager::loadProcessedMessages() {
         select 
             message_id
         from 
-            processed_messages 
+            processed_messages
+        where
+            to_user_id = '{to_user_id}'
         order by registered
         )";
 
+  boost::replace_all(query, "{to_user_id}", boost::uuids::to_string(clientId));
+  
   std::vector<std::vector<std::string>> data = dbConn->select(query);
 
   boost::uuids::string_generator gen;

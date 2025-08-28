@@ -14,8 +14,8 @@ public:
   Message loadMessage(boost::uuids::uuid messageId);
   bool deleteMessage(boost::uuids::uuid messageId);
 
-  bool saveProcessedMessage(boost::uuids::uuid messageId);
-  std::vector<boost::uuids::uuid> loadProcessedMessages();
+  bool saveProcessedMessage(boost::uuids::uuid clientId, boost::uuids::uuid messageId);
+  std::vector<boost::uuids::uuid> loadProcessedMessages(boost::uuids::uuid clientId);
   bool deleteProcessedMessage(boost::uuids::uuid messageId);
 
 private:

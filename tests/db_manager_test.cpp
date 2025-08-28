@@ -71,11 +71,11 @@ bool dbManagerTest() {
 
   std::cout << "----" << std::endl;
   std::cout << "Save processed msg:  " << boost::uuids::to_string(u) << ", "
-            << dbManager.saveProcessedMessage(u) << std::endl;
+            << dbManager.saveProcessedMessage(msgLoded.from, u) << std::endl;
   std::cout << "Save processed msg2: " << boost::uuids::to_string(u2) << ", "
-            << dbManager.saveProcessedMessage(u2) << std::endl;
+            << dbManager.saveProcessedMessage(msgLoded.from, u2) << std::endl;
 
-  auto ids = dbManager.loadProcessedMessages();
+  auto ids = dbManager.loadProcessedMessages(msgLoded.from);
 
   std::cout << "Loaded processedd messages: ";
   for (auto id : ids) {
@@ -87,7 +87,7 @@ bool dbManagerTest() {
   std::cout << "Delete processed msg2:  " << boost::uuids::to_string(u2)
             << dbManager.deleteProcessedMessage(u2) << std::endl;
 
-  ids = dbManager.loadProcessedMessages();
+  ids = dbManager.loadProcessedMessages(msgLoded.from);
 
   std::cout << "Loaded processedd messages: ";
   for (auto id : ids) {

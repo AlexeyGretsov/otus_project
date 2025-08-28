@@ -95,6 +95,10 @@ private:
             if (!writeMessages.empty()) {
               doWrite();
             }
+            else
+            {
+              checkSendBackMessages();
+            }
           }
         });
   }
@@ -112,6 +116,8 @@ private:
 
       clientUuid = msg.from;
 
+      checkSendBackMessages();
+
       return true;
     }
 
@@ -125,7 +131,7 @@ private:
 
         return false;
       }
-      if (not dbManager.saveProcessedMessage(msg->id)) {
+      if (not dbManager.saveProcessedMessage(msg->to, msg->id)) {
         std::cerr << "Failed to save processed message to DB" << std::endl;
         dbManager.deleteMessage(msg->id);
 
@@ -149,7 +155,19 @@ private:
     }
 
     std::cerr << "Message registered" << std::endl;
+
+    checkSendBackMessages();
+
     return true;
+  }
+
+  void checkSendBackMessages()
+  {
+    /*
+    1. Read all my active messages
+    2. Push to the queue
+    3. 
+     */
   }
 
   boost::uuids::uuid clientUuid;
