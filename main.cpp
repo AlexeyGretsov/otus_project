@@ -21,8 +21,12 @@
 
 using boost::asio::ip::tcp;
 
+
+class MessagesProcessor;
+
 typedef std::deque<TransferMessage> TransferMessageQueue;
 using DbConnectionPtr = std::shared_ptr<Db::IDbConnection>;
+using MessagesProcessorPtr = std::shared_ptr<MessagesProcessor>;
 
 inline DbConnectionPtr createDbConnection() {
   std::string dbHost = "localhost";
@@ -40,11 +44,47 @@ inline DbConnectionPtr createDbConnection() {
   return dbConn;
 }
 
-class Session : public std::enable_shared_from_this<Session> {
+class MessagesProcessor
+{
+  public:
+  virtual ~MessagesProcessor(){}
+
+  virtual void checkProcessedMessages() = 0;
+};
+
+class SessionsManager
+{
+  public:
+    void addSession(MessagesProcessorPtr processor)
+    {
+      processors.insert(processor);
+    }
+    void removeSession(MessagesProcessorPtr processor)
+    {
+      processors.erase(processor);
+    }
+    void checkProcessedMessages()
+    {
+      std::cout << "SessionsManager::checkProcessedMessages. Processors count: " 
+          << processors.size() << std::endl;
+      for (auto processor : processors)
+      {
+        processor->checkProcessedMessages();
+      }
+    }
+
+  private:
+    std::set<MessagesProcessorPtr> processors;
+};
+
+class Session : public MessagesProcessor, public std::enable_shared_from_this<Session> {
 public:
-  Session(tcp::socket socket) : socket(std::move(socket)) {}
+  Session(tcp::socket socket, SessionsManager& sessionManager) : socket(std::move(socket)),
+      sessionManager(sessionManager) {}
 
   void start() {
+    sessionManager.addSession(shared_from_this());
+
     dbConnectionPtr = createDbConnection();
     if (not dbConnectionPtr) {
       std::cerr << "Failed to start session: no DB connection" << std::endl;
@@ -62,9 +102,20 @@ private:
         socket,
         boost::asio::buffer(readMessage.getData(),
                             TransferMessage::headerLength),
-        [this, self](boost::system::error_code ec, std::size_t /*length*/) {
-          if (!ec && readMessage.decodeHeader()) {
+        [this, self](boost::system::error_code ec, std::size_t size) {
+          std::cout << "async_read header: " << size << std::endl;
+          if (!ec)
+          { 
+                      std::cout << "no errors" << std::endl;
+            if (readMessage.decodeHeader()) {
+              std::cout << "body length = " << readMessage.getBodyLength() << std::endl;
             doReadBody();
+            }
+          }
+          else
+          {
+            std::cout << "Remove session for client: " << clientUuid << std::endl;
+            sessionManager.removeSession(shared_from_this());
           }
         });
   }
@@ -74,11 +125,18 @@ private:
     boost::asio::async_read(
         socket,
         boost::asio::buffer(readMessage.getBody(), readMessage.getBodyLength()),
-        [this, self](boost::system::error_code ec, std::size_t /*length*/) {
+        [this, self](boost::system::error_code ec, std::size_t size) {
+          std::cout << "async_read body: " << size << std::endl;
           if (!ec) {
+            std::cout << "save message" << std::endl;
             saveMessage(readMessage);
 
             doReadHeader();
+          }
+          else
+          {
+            std::cout << "Remove session for client: " << clientUuid << std::endl;
+            sessionManager.removeSession(shared_from_this());
           }
         });
   }
@@ -91,32 +149,51 @@ private:
                             writeMessages.front().length()),
         [this, self](boost::system::error_code ec, std::size_t /*length*/) {
           if (!ec) {
+
+            if (not clearProcessedMessage(writeMessages.front()))
+            {
+              std::runtime_error("Failed to clear processed message");
+            }
+
             writeMessages.pop_front();
             if (!writeMessages.empty()) {
               doWrite();
             }
             else
             {
-              checkSendBackMessages();
+              sessionManager.checkProcessedMessages();
+//              checkProcessedMessages();
             }
           }
+          else
+          {
+            std::cout << "Remove session for client: " << clientUuid << std::endl;
+            sessionManager.removeSession(shared_from_this());
+          }
+
         });
   }
 
   bool saveMessage(const TransferMessage &readMessage) {
+    std::cout << "before parse: '" << readMessage.getBody() << "', " 
+        << std::strlen(readMessage.getBody()) << std::endl;
     Message msg;
-    if (not msg.fromJson(readMessage.getBody())) {
+    if (not msg.fromJson(std::string(readMessage.getBody(), readMessage.getBodyLength()))) {
       std::cerr << "Failed to parse received message" << std::endl;
 
       return false;
     }
 
+    std::cout << "after parse" << std::endl;
     if (msg.isAuth()) {
       std::cerr << "Received auth message " << msg.toJson();
 
       clientUuid = msg.from;
 
-      checkSendBackMessages();
+      std::cout << "before check" << std::endl;
+      sessionManager.checkProcessedMessages();
+//      checkProcessedMessages();
+      std::cout << "after check" << std::endl;
 
       return true;
     }
@@ -156,18 +233,59 @@ private:
 
     std::cerr << "Message registered" << std::endl;
 
-    checkSendBackMessages();
+    sessionManager.checkProcessedMessages();
+//checkProcessedMessages();
 
     return true;
   }
 
-  void checkSendBackMessages()
+  void checkProcessedMessages() override
   {
-    /*
-    1. Read all my active messages
-    2. Push to the queue
-    3. 
-     */
+    if (clientUuid.is_nil())
+    {
+      throw std::runtime_error("No client UUID after authirization");
+    }
+
+    std::cout << "checkProcessedMessages: " << boost::uuids::to_string(clientUuid) << std::endl;
+
+    DbManager dbManager(dbConnectionPtr);
+    std::vector<boost::uuids::uuid> ids = dbManager.loadProcessedMessages(clientUuid);
+
+    std::cout << "Found " << ids.size() << " records" << std::endl;
+
+    for (auto id : ids)
+    {
+      Message msg = dbManager.loadMessage(id);
+      if (msg.isValid())
+      {
+        std::string s = msg.toJson();
+        std::cout << "Put message " << s << ", size: " << s.size() << " to queue" << std::endl;
+
+        TransferMessage transferMsg{msg.toJson()};
+
+         std::cout << "Transfer message " << transferMsg.getBody() << ", length: "
+         << transferMsg.getBodyLength() << std::endl;
+        std::cout << "Transfer message created" << std::endl;
+//        writeMessages.emplace_back(msg.toJson());
+        writeMessages.push_back(transferMsg);
+
+      }
+    }
+
+    if (not writeMessages.empty())
+    {
+
+    doWrite();
+    }
+  }
+
+  bool clearProcessedMessage(const TransferMessage &transferMessage)
+  {
+    Message msg;
+    msg.fromJson(transferMessage.getBody());
+
+    DbManager dbManager(dbConnectionPtr);
+    return dbManager.deleteProcessedMessage(msg.id);
   }
 
   boost::uuids::uuid clientUuid;
@@ -175,6 +293,7 @@ private:
   TransferMessage readMessage;
   TransferMessageQueue writeMessages;
   DbConnectionPtr dbConnectionPtr;
+  SessionsManager &sessionManager;
 };
 
 class Server {
@@ -190,7 +309,7 @@ private:
         [this](boost::system::error_code ec, tcp::socket socket) {
           if (!ec) {
             std::cout << "Accept conection" << std::endl;
-            std::make_shared<Session>(std::move(socket))->start();
+            std::make_shared<Session>(std::move(socket), sessionManager)->start();
           }
 
           doAccept();
@@ -198,6 +317,7 @@ private:
   }
 
   tcp::acceptor acceptor;
+  SessionsManager sessionManager;
 };
 
 int main(int argc, char *argv[]) {

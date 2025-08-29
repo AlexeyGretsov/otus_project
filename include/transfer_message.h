@@ -9,9 +9,13 @@ public:
   static constexpr std::size_t headerLength = 4;
   static constexpr std::size_t MAX_BODY_LENGTH = 512;
 
-  TransferMessage() : bodyLength(0) {}
+  TransferMessage() : bodyLength(0) {
+    memset(data, 0, sizeof(data));
+  }
   TransferMessage(const std::string &source) {
+    memset(data, 0, sizeof(data));
     setBodyLength(source.length());
+
     std::memcpy(getBody(), source.c_str(), getBodyLength());
     encodeHeader();
   }
