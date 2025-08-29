@@ -1,0 +1,29 @@
+DROP TABLE IF EXISTS users;
+CREATE TABLE IF NOT EXISTS users
+(
+	users_id SERIAL PRIMARY KEY,
+	id UUID,
+	name TEXT NOT NULL
+);
+
+
+DROP TABLE IF EXISTS messages;
+CREATE TABLE IF NOT EXISTS messages
+(
+	messages_id SERIAL PRIMARY KEY,
+	id UUID,
+	from_user_id UUID NOT NULL,
+	to_user_id UUID NOT NULL,
+	accepted TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+	message JSON NOT NULL
+);
+
+
+DROP TABLE IF EXISTS processed_messages;
+CREATE TABLE IF NOT EXISTS processed_messages
+(
+	registered TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+	to_user_id UUID NOT NULL,
+	message_id UUID NOT NULL
+);
+
