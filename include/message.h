@@ -59,6 +59,9 @@ struct Message {
 
   bool isValid() const;
   bool isAuth() const;
+  bool isText() const;
+  bool isStatus() const;
+
   bool fromJson(std::string_view source);
   std::string toJson() const;
 

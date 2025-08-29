@@ -27,7 +27,6 @@ public:
 
       writeMessages.push_back(msg);
       if (!write_in_progress) {
-        std::cout << "doWrite" << std::endl;
         doWrite();
       }
     });
@@ -68,8 +67,10 @@ private:
         boost::asio::buffer(readMessage.getBody(), readMessage.getBodyLength()),
         [this](boost::system::error_code ec, std::size_t /*length*/) {
           if (!ec) {
-            std::cout.write(readMessage.getBody(), readMessage.getBodyLength());
-            std::cout << "\n";
+            if (not processMessage(readMessage)) {
+              socket.close();
+              return;
+            }
             doReadHeader();
           } else {
             socket.close();
@@ -95,6 +96,32 @@ private:
   }
 
 private:
+  bool processMessage(const TransferMessage &readMessage) {
+    Message msg;
+    if (not msg.fromJson(
+            std::string(readMessage.getBody(), readMessage.getBodyLength()))) {
+      std::cerr << "Failed to parse received message" << std::endl;
+
+      return false;
+    }
+
+    if (msg.isText()) {
+      TextMessageJson *json = static_cast<TextMessageJson *>(msg.json);
+      std::cout << "[Получено сообщение] " << json->text << std::endl;
+
+      StatusMessage statusMessage(msg.from, msg.id, Message::STATUS_RECEIVED);
+      TransferMessage transferMessage(statusMessage.toJson());
+      write(transferMessage);
+    } else if (msg.isStatus()) {
+      StatusMessageJson *json = static_cast<StatusMessageJson *>(msg.json);
+      std::cout << "[Статус сообщения] " << json->status << std::endl;
+    } else {
+      throw std::runtime_error("Undefined message received");
+    }
+
+    return true;
+  }
+
   boost::asio::io_context &io_context;
   tcp::socket socket;
   TransferMessage readMessage;
@@ -141,8 +168,8 @@ int main(int argc, char *argv[]) {
     c.write(transferMessage);
 
     char line[TransferMessage::MAX_BODY_LENGTH + 1];
-    while (std::cin.getline(line, TransferMessage::MAX_BODY_LENGTH + 1)) {
 
+    while (std::cin.getline(line, TransferMessage::MAX_BODY_LENGTH + 1)) {
       if (std::strlen(line) == 0) {
         continue;
       }

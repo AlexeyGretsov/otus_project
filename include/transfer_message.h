@@ -8,16 +8,44 @@ class TransferMessage {
 public:
   static constexpr std::size_t headerLength = 4;
   static constexpr std::size_t MAX_BODY_LENGTH = 512;
+  static constexpr std::size_t FULL_SIZE = headerLength + MAX_BODY_LENGTH;
 
   TransferMessage() : bodyLength(0) {
-    memset(data, 0, sizeof(data));
+    data = new char[FULL_SIZE];
+    std::memset(data, 0, FULL_SIZE);
   }
   TransferMessage(const std::string &source) {
-    memset(data, 0, sizeof(data));
+    data = new char[FULL_SIZE];
+    std::memset(data, 0, FULL_SIZE);
     setBodyLength(source.length());
 
     std::memcpy(getBody(), source.c_str(), getBodyLength());
     encodeHeader();
+  }
+  ~TransferMessage() { delete data; }
+  TransferMessage(const TransferMessage &other) {
+    data = new char[FULL_SIZE];
+    bodyLength = other.bodyLength;
+    std::memcpy(data, other.data, FULL_SIZE);
+  }
+  TransferMessage(TransferMessage &&other) {
+    bodyLength = other.bodyLength;
+    data = std::move(other.data);
+  }
+  TransferMessage &operator=(const TransferMessage &other) {
+    if (this != &other) {
+      bodyLength = other.bodyLength;
+      std::memcpy(data, other.data, FULL_SIZE);
+    }
+
+    return *this;
+  }
+  TransferMessage &operator=(TransferMessage &&other) {
+    if (this != &other) {
+      bodyLength = other.bodyLength;
+      data = std::move(other.data);
+    }
+    return *this;
   }
 
   const char *getData() const { return data; }
@@ -57,6 +85,6 @@ public:
   }
 
 private:
-  char data[headerLength + MAX_BODY_LENGTH];
+  char *data{nullptr};
   std::size_t bodyLength;
 };

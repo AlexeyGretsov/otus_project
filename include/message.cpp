@@ -157,6 +157,14 @@ bool Message::isAuth() const {
   return json and json->type == AuthMessageJson().type;
 }
 
+bool Message::isText() const {
+  return json and json->type == TextMessageJson().type;
+}
+
+bool Message::isStatus() const {
+  return json and json->type == StatusMessageJson().type;
+}
+
 bool Message::fromJson(std::string_view source) {
   nlohmann::json parsed_json = nlohmann::json::parse(source);
 
